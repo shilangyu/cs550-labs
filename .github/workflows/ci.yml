@@ -25,7 +25,6 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
-          cache: "sbt"
 
       - name: Cache stainless
         id: cache-stainless
