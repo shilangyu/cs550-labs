@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+env:
+  STAINLESS_VERSION: 0.9.8.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: "sbt"
+
+      - name: Cache stainless
+        id: cache-stainless
+        uses: actions/cache@v3
+        with:
+          path: stainless
+          key: ${{ env.STAINLESS_VERSION }}-stainless
+
+      - name: Download stainless
+        if: steps.cache-stainless.outputs.cache-hit != 'true'
+        run: |
+          mkdir stainless
+          cd stainless
+          wget https://github.com/epfl-lara/stainless/releases/download/v${{ env.STAINLESS_VERSION }}/stainless-dotty-standalone-${{ env.STAINLESS_VERSION }}-linux.zip
+          unzip stainless-dotty-standalone-${{ env.STAINLESS_VERSION }}-linux.zip
+
+      - name: Lab 1
+        run: |
+          ./stainless/stainless.sh lab1/Sublist.scala
