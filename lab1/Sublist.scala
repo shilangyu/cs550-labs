@@ -149,12 +149,17 @@ object SublistSpecs {
     sublist(l ++ l1, l ++ l2)
   )
 
-  /*
   def append[T](l1: List[T], l2: List[T], l: List[T]): Unit = {
     require(sublist(l1, l2))
-    //
-  }.ensuring(_ =>
-    sublist(l1 ++ l, l2 ++ l)
-  )
-  */
+
+    (l1, l2) match
+      case (Nil(), Nil()) => reflexivity(l)
+      case (Nil(), _)     => extendLeft(l2, l)
+      case (_, Nil())     => extendLeft(l1, l)
+      case (Cons(h1, tail1), Cons(h2, tail2)) =>
+        if h1 == h2 then
+          tails(l1, l2)
+          append(tail1, tail2, l)
+        else append(l1, tail2, l)
+  }.ensuring(_ => sublist(l1 ++ l, l2 ++ l))
 }
