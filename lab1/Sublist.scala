@@ -41,31 +41,23 @@ object SublistSpecs {
 
   /* forall l, sublist(l, l) */
   def reflexivity[T](l: List[T]): Unit = {
-    if l.isEmpty then () else reflexivity(l.tail)
+    if !l.isEmpty then
+      reflexivity(l.tail)
   }.ensuring(_ => sublist(l, l))
-
-  def rightPrepend[T](l1: List[T], l2: List[T], t: T): Unit = {
-    require(sublist(l1, l2))
-  }.ensuring(_ => sublist(l1, t :: l2))
 
   def leftTail[T](l1: List[T], l2: List[T]): Unit = {
     require(!l1.isEmpty && sublist(l1, l2))
-    l1 match
-      case Cons(x, Nil()) => ()
-      case Cons(x, xs) =>
-        if x == l2.head && sublist(xs, l2.tail) then
-          rightPrepend(xs, l2.tail, l2.head)
-        else if sublist(l1, l2.tail) then
-          leftTail((x :: xs), l2.tail)
-          rightPrepend(xs, l2.tail, l2.head)
+
+    if sublist(l1, l2.tail) then
+      leftTail(l1, l2.tail)
   }.ensuring(_ =>
     sublist(l1.tail, l2)
   )
  
   def tails[T](l1: List[T], l2: List[T]): Unit = {
     require(!l1.isEmpty && !l2.isEmpty && l1.head == l2.head && sublist(l1, l2))
-    if sublist(l1.tail, l2.tail) then ()
-    else if sublist(l1, l2.tail) then leftTail(l1, l2.tail)
+    if sublist(l1, l2.tail) then 
+      leftTail(l1, l2.tail)
   }.ensuring(_ =>
     sublist(l1.tail, l2.tail)
   )
@@ -86,7 +78,6 @@ object SublistSpecs {
           transitivity(l1, l2.tail, l3)
         else if y != z && sublist(l2, l3.tail) then
           transitivity(l1, l2, l3.tail)
-          rightPrepend(l1, l3.tail, l3.head)    
   }.ensuring(_ =>
     sublist(l1, l3)
   )
@@ -96,27 +87,30 @@ object SublistSpecs {
     l1 match
       case Nil() => ()
       case Cons(x, xs) =>
-        if x == l2.head && sublist(xs, l2.tail) then
-          lengthHomomorphism(xs, l2.tail)
-        else if sublist(l1, l2.tail) then
+        if sublist(l1, l2.tail) then
           lengthHomomorphism(l1, l2.tail)
+        else
+          lengthHomomorphism(xs, l2.tail)
   }.ensuring(_ =>
     l1.length <= l2.length
   )
 
-  /*
   def biggerSublist[T](l1: List[T], l2: List[T]): Unit = {
     require(sublist(l1, l2) && l1.length >= l2.length)
-
-    /* TODO: Prove me */
+    lengthHomomorphism(l1, l2)
+    l1 match
+      case Nil() => ()
+      case Cons(x, xs) =>
+        biggerSublist(xs, l2.tail)
   }.ensuring(_ =>
     l1 == l2
   )
-
+  
   def antisymmetry[T](l1: List[T], l2: List[T]): Unit = {
     require(sublist(l1, l2) && sublist(l2, l1))
-
-    /* TODO: Prove me */
+    lengthHomomorphism(l1, l2)
+    lengthHomomorphism(l2, l1)
+    biggerSublist(l1, l2)
   }.ensuring(_ =>
     l1 == l2
   )
@@ -127,29 +121,38 @@ object SublistSpecs {
    * https://github.com/epfl-lara/stainless/blob/64a09dbc58d0a41e49e7dffbbd44b234c4d2da59/frontends/library/stainless/collection/List.scala#L46
    */
   def extendRight[T](l1: List[T], l2: List[T]): Unit = {
-    /* TODO: Prove me */
+    l1 match
+      case Nil() => ()
+      case Cons(x, xs) =>
+        extendRight(xs, l2)
   }.ensuring(_ =>
     sublist(l1, l1 ++ l2)
   )
 
   def extendLeft[T](l1: List[T], l2: List[T]): Unit = {
-    /* TODO: Prove me */
+    l1 match
+      case Nil() =>
+        reflexivity(l2)
+      case Cons(x, xs) =>
+        extendLeft(xs, l2)
   }.ensuring(_ =>
     sublist(l2, l1 ++ l2)
   )
 
   def prepend[T](l: List[T], l1: List[T], l2: List[T]): Unit = {
     require(sublist(l1, l2))
-
-    /* TODO: Prove me */
+    l match
+      case Nil() => ()
+      case Cons(z, zs) =>
+        prepend(zs, l1, l2)
   }.ensuring(_ =>
     sublist(l ++ l1, l ++ l2)
   )
 
+  /*
   def append[T](l1: List[T], l2: List[T], l: List[T]): Unit = {
     require(sublist(l1, l2))
-
-    /* TODO: Prove me */
+    //
   }.ensuring(_ =>
     sublist(l1 ++ l, l2 ++ l)
   )
