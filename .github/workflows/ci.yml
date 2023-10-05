@@ -43,4 +43,8 @@ jobs:
 
       - name: Lab 1
         run: |
-          ./stainless/stainless.sh lab1/Sublist.scala
+          ./stainless/stainless.sh lab1/Sublist.scala --timeout=2
+
+      - name: Lab 2
+        run: |
+          ./stainless/stainless.sh lab2/SimpleProtocol.scala --timeout=2
