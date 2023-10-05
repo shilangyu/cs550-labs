@@ -132,8 +132,24 @@ object NetworkProperties {
     require(iter >= 0)
     require(!network.messageExchange(sender, receiver, iter)._1.msgQueued)
 
-    /* TODO: Prove me */
+    if sender.msgQueued && iter > 0 then
+      val m = sender.nextMsg
+      if network.hasSent(m, iter) then
 
+        ListSpecs.appendAssoc(
+          receiver.received,
+          Cons(m, Nil()),
+          sender.updated.toSend
+        )
+
+        messageExchangeCorrectness(
+          network,
+          sender.updated,
+          receiver.receive(m),
+          iter - 1
+        )
+      else messageExchangeCorrectness(network, sender, receiver, iter - 1)
+    else ()
   }.ensuring(
     receivedAllMsgCorrectly(
       sender,
@@ -141,6 +157,8 @@ object NetworkProperties {
       network.messageExchange(sender, receiver, iter)._2
     )
   )
+
+  /*
 
   /** For any network, if the receiver has received all the messages transmitted
     * by the sender, then the number of iteration of the protocol is at least
