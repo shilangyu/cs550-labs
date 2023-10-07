@@ -132,24 +132,12 @@ object NetworkProperties {
     require(iter >= 0)
     require(!network.messageExchange(sender, receiver, iter)._1.msgQueued)
 
-    if sender.msgQueued && iter > 0 then
+    if sender.msgQueued then
       val m = sender.nextMsg
       if network.hasSent(m, iter) then
-
-        ListSpecs.appendAssoc(
-          receiver.received,
-          Cons(m, Nil()),
-          sender.updated.toSend
-        )
-
-        messageExchangeCorrectness(
-          network,
-          sender.updated,
-          receiver.receive(m),
-          iter - 1
-        )
+        ListSpecs.appendAssoc(receiver.received, Cons(m, Nil()), sender.updated.toSend)
+        messageExchangeCorrectness(network, sender.updated, receiver.receive(m), iter - 1)
       else messageExchangeCorrectness(network, sender, receiver, iter - 1)
-    else ()
   }.ensuring(
     receivedAllMsgCorrectly(
       sender,
@@ -157,8 +145,6 @@ object NetworkProperties {
       network.messageExchange(sender, receiver, iter)._2
     )
   )
-
-  /*
 
   /** For any network, if the receiver has received all the messages transmitted
     * by the sender, then the number of iteration of the protocol is at least
@@ -179,9 +165,13 @@ object NetworkProperties {
         network.messageExchange(sender, receiver, iter)._2
       )
     )
-
-    /* TODO: Prove me */
-
+    
+    if sender.msgQueued then
+      val m = sender.nextMsg
+      if network.hasSent(m, iter) then
+        ListSpecs.appendAssoc(receiver.received, Cons(m, Nil()), sender.updated.toSend)
+        messageExchangeLowerBound(network, sender.updated, receiver.receive(m), iter - 1)
+      else messageExchangeLowerBound(network, sender, receiver, iter - 1)
   }.ensuring(iter >= sender.toSend.size)
 
   /** If the network does not loose any packet, then the number of iteration of
@@ -195,8 +185,11 @@ object NetworkProperties {
     decreases(iter)
     require(iter >= sender.toSend.size)
 
-    /* TODO: Prove me */
-
+    if sender.msgQueued then
+      val m = sender.nextMsg
+      messageExchangeWithNoLoss(sender.updated, receiver.receive(m), iter - 1)
+      ListSpecs.appendAssoc(receiver.received, Cons(m, Nil()), sender.updated.toSend)
+      ()
   }.ensuring(
     receivedAllMsgCorrectly(
       sender,
@@ -222,9 +215,8 @@ object NetworkProperties {
         network.messageExchange(sender, receiver, iter)._2
       )
     )
-
-    /* TODO: Prove me */
-
+    messageExchangeLowerBound(network, sender, receiver, iter)
+    messageExchangeWithNoLoss(sender, receiver, iter)
   }.ensuring(
     receivedAllMsgCorrectly(
       sender,
@@ -244,8 +236,8 @@ object NetworkProperties {
     decreases(iter)
     require(iter >= 0)
 
-    /* TODO: Prove me */
-
+    if iter > 0 then
+      messageExchangeWithFullLosses(sender, receiver, iter - 1)
   }.ensuring(
     fullLossNetwork.messageExchange(sender, receiver, iter)
       ==
@@ -270,8 +262,7 @@ object NetworkProperties {
       )
     )
 
-    /* TODO: Prove me */
-
+    messageExchangeWithFullLosses(sender, receiver, iter)
   }.ensuring(!sender.msgQueued)
 
   /** When dealing with a [[badButPredictableNetwork]], if the number of
@@ -291,15 +282,15 @@ object NetworkProperties {
     require(iter >= 0)
     require(n > 0)
 
-    /* TODO: Prove me */
-
+    if n > 1 && iter % n > 0 then
+      messageExchangeBadNetwork(sender, receiver, iter - 1, n)
+      modMinusOne(iter, n)
   }.ensuring(
     badButPredictableNetwork(n).messageExchange(sender, receiver, iter)
       ==
         badButPredictableNetwork(n)
           .messageExchange(sender, receiver, iter - (iter % n))
   )
-
 }
 
 object Helpers {
