@@ -137,7 +137,6 @@ object NetworkProperties {
     if sender.msgQueued && iter > 0 then
       val m = sender.nextMsg
       if network.hasSent(m, iter) then
-
         ListSpecs.appendAssoc(
           receiver.received,
           Cons(m, Nil()),
@@ -151,7 +150,6 @@ object NetworkProperties {
           iter - 1
         )
       else messageExchangeCorrectness(network, sender, receiver, iter - 1)
-    else ()
   }.ensuring(
     receivedAllMsgCorrectly(
       sender,
@@ -196,8 +194,6 @@ object NetworkProperties {
           iter - 1
         )
       else messageExchangeLowerBound(network, sender, receiver, iter - 1)
-    else ()
-
   }.ensuring(iter >= sender.toSend.size)
 
   /** If the network does not loose any packet, then the number of iteration of
@@ -224,8 +220,6 @@ object NetworkProperties {
         receiver.receive(m),
         iter - 1
       )
-    else ()
-
   }.ensuring(
     receivedAllMsgCorrectly(
       sender,
@@ -273,8 +267,7 @@ object NetworkProperties {
     decreases(iter)
     require(iter >= 0)
 
-    if sender.msgQueued && iter > 0 then
-      messageExchangeWithFullLosses(sender, receiver, iter - 1)
+    if iter > 0 then messageExchangeWithFullLosses(sender, receiver, iter - 1)
   }.ensuring(
     fullLossNetwork.messageExchange(sender, receiver, iter)
       ==
@@ -299,7 +292,7 @@ object NetworkProperties {
       )
     )
 
-    if sender.msgQueued && iter > 0 then
+    if iter > 0 then
       receivedAllMsgCorrectlyFullLosses(sender, receiver, iter - 1)
   }.ensuring(!sender.msgQueued)
 
@@ -320,26 +313,15 @@ object NetworkProperties {
     require(iter >= 0)
     require(n > 0)
 
-    if sender.msgQueued && iter > 0 then
-      val m = sender.nextMsg
-      if badButPredictableNetwork(n).hasSent(m, iter) then
-        messageExchangeBadNetwork(
-          sender.updated,
-          receiver.receive(m),
-          iter - 1,
-          n
-        )
-      else
-        modMinusOne(iter, n)
-        messageExchangeBadNetwork(sender, receiver, iter - 1, n)
-    else ()
+    if n > 1 && iter % n > 0 then
+      modMinusOne(iter, n)
+      messageExchangeBadNetwork(sender, receiver, iter - 1, n)
   }.ensuring(
     badButPredictableNetwork(n).messageExchange(sender, receiver, iter)
       ==
         badButPredictableNetwork(n)
           .messageExchange(sender, receiver, iter - (iter % n))
   )
-
 }
 
 object Helpers {
