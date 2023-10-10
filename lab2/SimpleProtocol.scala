@@ -2,10 +2,8 @@
 //> using scala "3.2.0"
 
 import stainless.annotation.*
-import stainless.collection.ListSpecs
 import stainless.collection.*
 import stainless.lang.*
-import stainless.proof._
 
 trait Message
 
