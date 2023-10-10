@@ -290,8 +290,7 @@ object NetworkProperties {
       )
     )
 
-    if iter > 0 then
-      receivedAllMsgCorrectlyFullLosses(sender, receiver, iter - 1)
+    messageExchangeWithFullLosses(sender, receiver, iter)
   }.ensuring(!sender.msgQueued)
 
   /** When dealing with a [[badButPredictableNetwork]], if the number of
@@ -311,7 +310,7 @@ object NetworkProperties {
     require(iter >= 0)
     require(n > 0)
 
-    if n > 1 && iter % n > 0 then
+    if iter % n > 0 then
       modMinusOne(iter, n)
       messageExchangeBadNetwork(sender, receiver, iter - 1, n)
   }.ensuring(
