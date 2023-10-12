@@ -5,6 +5,16 @@ import stainless.collection.*
 import stainless.lang.Map.ToMapOps
 import stainless.lang.*
 
+extension [T](l: List[T])
+  def without(index: BigInt): List[T] = l.take(index) ++ l.drop(index + 1)
+  def zipWithIndex: List[(T, BigInt)] = {
+    def aux(l: List[T], i: BigInt): List[(T, BigInt)] = l match
+      case Cons(h, t) => Cons((h, i), aux(t, i + 1))
+      case Nil()      => Nil()
+
+    aux(l, 0)
+  }
+
 object Resolution {
 
   /** Make sure that all bound variables are uniquely named, and with names
@@ -226,8 +236,39 @@ object Resolution {
     *   Invalid(mkErrorMessage)
     */
   def checkResolutionProof(proof: ResolutionProof): ProofCheckResult = {
-    /* TODO: Implement me */
-    (??? : ProofCheckResult)
+    def checkStep(
+        clauses: List[Clause],
+        clause: Clause,
+        step: Justification
+    ): ProofCheckResult = step match
+      case Assumed => Valid
+      case Deduced((i1, i2), subst) =>
+        val (c1, c2) = (
+          clauses(i1).map(_.substitute(subst)),
+          clauses(i2).map(_.substitute(subst))
+        )
+
+        c1.zipWithIndex
+          .find((e) => {
+            val (l1, i1) = e
+
+            c2.indexOf(l1.negation) match
+              case BigInt(-1) => false
+              case i2 =>
+                (c1.without(i1) ++ c2.without(i2)).toSet == clause.toSet
+          })
+          .map((_) => Valid)
+          .getOrElse(Invalid("no steps found"))
+
+    proof
+      .foldLeft[(List[Clause], ProofCheckResult)]((List(), Valid))(
+        (scan, curr) =>
+          scan._2 match
+            case Valid =>
+              (scan._1 :+ curr._1, checkStep(scan._1, curr._1, curr._2))
+            case i: Invalid => scan
+      )
+      ._2
   }
 
   def assumptions(proof: ResolutionProof): List[Clause] = {

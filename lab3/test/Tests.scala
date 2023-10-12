@@ -1,15 +1,14 @@
-import stainless.lang.*
-import stainless.collection.*
-import stainless.annotation.*
-
-import scala.collection.mutable.{Set => MSet}
-import scala.collection.immutable.{Set => SSet}
-
-import munit.{FunSuite, Tag}
-
-import Resolution.*
 import Formulas.*
 import Mansion.*
+import Resolution.*
+import munit.FunSuite
+import munit.Tag
+import stainless.annotation.*
+import stainless.collection.*
+import stainless.lang.*
+
+import scala.collection.immutable.{Set => SSet}
+import scala.collection.mutable.{Set => MSet}
 
 class Tests extends FunSuite {
 
@@ -338,6 +337,38 @@ class Tests extends FunSuite {
 
     assert(checkResolutionProof(standard).valid)
     assert(checkResolutionProof(contracted).valid)
+  }
+
+  test("Proof check - incorrect deduction") {
+    val proof1: ResolutionProof =
+      runningExampleClauses(s0, s1).map((_, Assumed)) ++ List(
+        /*4*/ (
+          List(Literal(p2(x1, f2(f(s0)(x1), z2)))),
+          Deduced((0, 1), Map(x2.name -> x1, y2.name -> f(s0)(x1)))
+        ),
+        /*5*/ (
+          List(Literal(Neg(p1(f(s0)(f(s2)()))))),
+          Deduced((0, 3), Map(x1.name -> f(s1)(), y4.name -> f(s0)(f(s1)())))
+        )
+      )
+
+    val proof2: ResolutionProof = List(
+      (List(Literal(p1(x1)), Literal(q1(x2))), Assumed),
+      (List(Literal(Neg(p1(x1))), Literal(q1(x1))), Assumed)
+    ) ++ List(
+      (List(Literal(q1(x1)), Literal(q1(x1))), Deduced((0, 1), Map()))
+    )
+
+    val proof3: ResolutionProof = List(
+      (List(Literal(p1(x1)), Literal(q1(x1))), Assumed),
+      (List(Literal(Neg(p1(x1))), Literal(q1(x1))), Assumed)
+    ) ++ List(
+      (List(Literal(q1(x1)), Literal(q1(x2))), Deduced((0, 1), Map()))
+    )
+
+    assert(!checkResolutionProof(proof1).valid)
+    assert(!checkResolutionProof(proof2).valid)
+    assert(!checkResolutionProof(proof3).valid)
   }
 
   // Theorem extraction
