@@ -25,6 +25,9 @@ jobs:
         with:
           java-version: "17"
           distribution: "temurin"
+      
+      - name: Setup scala-cli
+        uses: VirtusLab/scala-cli-setup@v1
 
       - name: Cache stainless
         id: cache-stainless
