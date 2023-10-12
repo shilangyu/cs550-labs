@@ -134,8 +134,17 @@ object Resolution {
     *   - Return the matrix of the formula.
     */
   def prenexSkolemizationNegation(f: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    def aux(f: Formula): Formula = f match
+      case p @ Predicate(name, children) => p
+      case And(l, r)                     => And(aux(l), aux(r))
+      case Or(l, r)                      => Or(aux(l), aux(r))
+      case Implies(left, right)          => ??? // should not happen in NNF
+      case Neg(inner)                    => Neg(aux(inner))
+      case Forall(variable, inner)       => aux(inner)
+      case Exists(variable, inner) =>
+        ??? // should not happen after skolemization
+
+    aux(skolemizationNegation(f))
   }.ensuring(res =>
     res.isNNF && res.containsNoUniversal && res.containsNoExistential
   )
@@ -150,8 +159,22 @@ object Resolution {
     * This function should NOT do that.
     */
   def conjunctionPrenexSkolemizationNegation(f: Formula): List[Clause] = {
-    /* TODO: Implement me */
-    (??? : List[Clause])
+    def aux(f: Formula): List[Clause] = f match
+      case And(l, r) => aux(l) ++ aux(r)
+      case Or(l, r) =>
+        for
+          cl <- aux(l)
+          cr <- aux(r)
+        yield cl ++ cr
+      case p @ (Neg(Predicate(_, _)) | Predicate(_, _)) =>
+        List(List(Literal(p)))
+      case Implies(left, right)    => ??? // should not happen in NNF
+      case Neg(inner)              => ??? // should not happen in NNF
+      case Forall(variable, inner) => ??? // should not happen after prenex
+      case Exists(variable, inner) =>
+        ??? // should not happen after skolemization
+
+    aux(prenexSkolemizationNegation(f))
   }
 
   /* Part two: proof checking */
