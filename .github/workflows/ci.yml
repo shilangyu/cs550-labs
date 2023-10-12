@@ -42,9 +42,17 @@ jobs:
           unzip stainless-dotty-standalone-${{ env.STAINLESS_VERSION }}-linux.zip
 
       - name: Lab 1
+        working-directory: lab1
         run: |
-          ./stainless/stainless.sh lab1/Sublist.scala --timeout=2
-
+          ../stainless/stainless.sh Sublist.scala
+      
       - name: Lab 2
+        working-directory: lab2
         run: |
-          ./stainless/stainless.sh lab2/SimpleProtocol.scala --timeout=2
+          ../stainless/stainless.sh SimpleProtocol.scala
+      
+      - name: Lab 3
+        working-directory: lab3
+        run: |
+          scala-cli test .
+          ../stainless/stainless.sh src/*.scala
