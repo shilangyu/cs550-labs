@@ -1,10 +1,9 @@
-import stainless.lang.*
-import stainless.collection.*
-import stainless.annotation.*
-import stainless.lang.Map.ToMapOps
-
-import Utils.*
 import Formulas.*
+import Utils.*
+import stainless.annotation.*
+import stainless.collection.*
+import stainless.lang.Map.ToMapOps
+import stainless.lang.*
 
 object Resolution {
 
@@ -74,8 +73,30 @@ object Resolution {
    * Put the formula in Negation Normal Form.
    */
   def negationNormalForm(f: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    f match
+      case Neg(inner) =>
+        inner match
+          case p @ Predicate(name, children) => Neg(p)
+          case And(l, r) =>
+            Or(negationNormalForm(Neg(l)), negationNormalForm(Neg(r)))
+          case Or(l, r) =>
+            And(negationNormalForm(Neg(l)), negationNormalForm(Neg(r)))
+          case Implies(left, right) =>
+            negationNormalForm(Neg(Or(Neg(left), right)))
+          case Neg(inner) => negationNormalForm(inner)
+          case Forall(variable, inner) =>
+            Exists(variable, negationNormalForm(Neg(inner)))
+          case Exists(variable, inner) =>
+            Forall(variable, negationNormalForm(Neg(inner)))
+
+      case p @ Predicate(name, children) => p
+      case And(l, r) => And(negationNormalForm(l), negationNormalForm(r))
+      case Or(l, r)  => Or(negationNormalForm(l), negationNormalForm(r))
+      case Implies(left, right) => negationNormalForm(Or(Neg(left), right))
+      case Forall(variable, inner) =>
+        Forall(variable, negationNormalForm(inner))
+      case Exists(variable, inner) =>
+        Exists(variable, negationNormalForm(inner))
   }.ensuring(res => res.isNNF)
 
   /** Perform the following steps:
@@ -85,8 +106,26 @@ object Resolution {
     *   - Eliminate existential quantifiers using Skolemization.
     */
   def skolemizationNegation(f0: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    def aux(f: Formula, subst: Map[Identifier, Term]): Formula = f match
+      case Predicate(name, children) =>
+        Predicate(name, children.map(_.substitute(subst)))
+      case And(l, r)               => And(aux(l, subst), aux(r, subst))
+      case Or(l, r)                => Or(aux(l, subst), aux(r, subst))
+      case Implies(left, right)    => ??? // should not happen in NNF
+      case Neg(inner)              => Neg(aux(inner, subst))
+      case Forall(variable, inner) => Forall(variable, aux(inner, subst))
+      case e @ Exists(variable, inner) =>
+        aux(
+          inner,
+          subst + (variable.name -> Function(
+            variable.name,
+            e.freeVariables.map(Var(_))
+          ))
+        )
+
+    val f = negationNormalForm(makeVariableNamesUnique(f0))
+
+    aux(f, Map())
   }.ensuring(res => res.isNNF && res.containsNoExistential)
 
   /** Perform the following steps:
