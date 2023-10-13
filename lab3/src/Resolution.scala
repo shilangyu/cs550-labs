@@ -14,6 +14,8 @@ extension [T](l: List[T])
 
     aux(l, 0)
   }
+  def lift(i: BigInt): Option[T] =
+    if i >= 0 && i < l.length then Some(l(i)) else None()
 
 object Resolution {
 
@@ -83,6 +85,7 @@ object Resolution {
    * Put the formula in Negation Normal Form.
    */
   def negationNormalForm(f: Formula): Formula = {
+    decreases(f)
     f match
       case Neg(inner) =>
         inner match
@@ -92,7 +95,7 @@ object Resolution {
           case Or(l, r) =>
             And(negationNormalForm(Neg(l)), negationNormalForm(Neg(r)))
           case Implies(left, right) =>
-            negationNormalForm(Neg(Or(Neg(left), right)))
+            And(negationNormalForm(left), negationNormalForm(Neg(right)))
           case Neg(inner) => negationNormalForm(inner)
           case Forall(variable, inner) =>
             Exists(variable, negationNormalForm(Neg(inner)))
@@ -102,7 +105,8 @@ object Resolution {
       case p @ Predicate(name, children) => p
       case And(l, r) => And(negationNormalForm(l), negationNormalForm(r))
       case Or(l, r)  => Or(negationNormalForm(l), negationNormalForm(r))
-      case Implies(left, right) => negationNormalForm(Or(Neg(left), right))
+      case Implies(left, right) =>
+        Or(negationNormalForm(Neg(left)), negationNormalForm(right))
       case Forall(variable, inner) =>
         Forall(variable, negationNormalForm(inner))
       case Exists(variable, inner) =>
@@ -116,26 +120,28 @@ object Resolution {
     *   - Eliminate existential quantifiers using Skolemization.
     */
   def skolemizationNegation(f0: Formula): Formula = {
-    def aux(f: Formula, subst: Map[Identifier, Term]): Formula = f match
-      case Predicate(name, children) =>
-        Predicate(name, children.map(_.substitute(subst)))
-      case And(l, r)               => And(aux(l, subst), aux(r, subst))
-      case Or(l, r)                => Or(aux(l, subst), aux(r, subst))
-      case Implies(left, right)    => ??? // should not happen in NNF
-      case Neg(inner)              => Neg(aux(inner, subst))
-      case Forall(variable, inner) => Forall(variable, aux(inner, subst))
-      case e @ Exists(variable, inner) =>
-        aux(
-          inner,
-          subst + (variable.name -> Function(
-            variable.name,
-            e.freeVariables.map(Var(_))
-          ))
-        )
+    def aux(f: Formula, subst: Map[Identifier, Term]): Formula = {
+      require(f.isNNF)
 
-    val f = negationNormalForm(makeVariableNamesUnique(f0))
+      f match
+        case Predicate(name, children) =>
+          Predicate(name, children.map(_.substitute(subst)))
+        case And(l, r)               => And(aux(l, subst), aux(r, subst))
+        case Or(l, r)                => Or(aux(l, subst), aux(r, subst))
+        case Implies(left, right)    => ??? // should not happen in NNF
+        case Neg(inner)              => Neg(aux(inner, subst))
+        case Forall(variable, inner) => Forall(variable, aux(inner, subst))
+        case e @ Exists(variable, inner) =>
+          aux(
+            inner,
+            subst + (variable.name -> Function(
+              variable.name,
+              e.freeVariables.map(Var(_))
+            ))
+          )
+    }.ensuring(res => res.isNNF && res.containsNoExistential)
 
-    aux(f, Map())
+    aux(negationNormalForm(makeVariableNamesUnique(f0)), Map())
   }.ensuring(res => res.isNNF && res.containsNoExistential)
 
   /** Perform the following steps:
@@ -144,15 +150,21 @@ object Resolution {
     *   - Return the matrix of the formula.
     */
   def prenexSkolemizationNegation(f: Formula): Formula = {
-    def aux(f: Formula): Formula = f match
-      case p @ Predicate(name, children) => p
-      case And(l, r)                     => And(aux(l), aux(r))
-      case Or(l, r)                      => Or(aux(l), aux(r))
-      case Implies(left, right)          => ??? // should not happen in NNF
-      case Neg(inner)                    => Neg(aux(inner))
-      case Forall(variable, inner)       => aux(inner)
-      case Exists(variable, inner) =>
-        ??? // should not happen after skolemization
+    def aux(f: Formula): Formula = {
+      require(f.isNNF && f.containsNoExistential)
+
+      f match
+        case p @ Predicate(name, children) => p
+        case And(l, r)                     => And(aux(l), aux(r))
+        case Or(l, r)                      => Or(aux(l), aux(r))
+        case Implies(left, right)          => ??? // should not happen in NNF
+        case Neg(inner)                    => Neg(aux(inner))
+        case Forall(variable, inner)       => aux(inner)
+        case Exists(variable, inner) =>
+          ??? // should not happen after skolemization
+    }.ensuring(res =>
+      res.isNNF && res.containsNoUniversal && res.containsNoExistential
+    )
 
     aux(skolemizationNegation(f))
   }.ensuring(res =>
@@ -169,20 +181,24 @@ object Resolution {
     * This function should NOT do that.
     */
   def conjunctionPrenexSkolemizationNegation(f: Formula): List[Clause] = {
-    def aux(f: Formula): List[Clause] = f match
-      case And(l, r) => aux(l) ++ aux(r)
-      case Or(l, r) =>
-        for
-          cl <- aux(l)
-          cr <- aux(r)
-        yield cl ++ cr
-      case p @ (Neg(Predicate(_, _)) | Predicate(_, _)) =>
-        List(List(Literal(p)))
-      case Implies(left, right)    => ??? // should not happen in NNF
-      case Neg(inner)              => ??? // should not happen in NNF
-      case Forall(variable, inner) => ??? // should not happen after prenex
-      case Exists(variable, inner) =>
-        ??? // should not happen after skolemization
+    def aux(f: Formula): List[Clause] = {
+      require(f.isNNF && f.containsNoUniversal && f.containsNoExistential)
+
+      f match
+        case And(l, r) => aux(l) ++ aux(r)
+        case Or(l, r) =>
+          for
+            cl <- aux(l)
+            cr <- aux(r)
+          yield cl ++ cr
+        case p @ Neg(Predicate(_, _)) => List(List(Literal(p)))
+        case p @ Predicate(_, _)      => List(List(Literal(p)))
+        case Implies(left, right)     => ??? // should not happen in NNF
+        case Neg(inner)               => ??? // should not happen in NNF
+        case Forall(variable, inner)  => ??? // should not happen after prenex
+        case Exists(variable, inner) =>
+          ??? // should not happen after skolemization
+    }
 
     aux(prenexSkolemizationNegation(f))
   }
@@ -244,21 +260,27 @@ object Resolution {
       case Assumed => Valid
       case Deduced((i1, i2), subst) =>
         val (c1, c2) = (
-          clauses(i1).map(_.substitute(subst)),
-          clauses(i2).map(_.substitute(subst))
+          clauses.lift(i1).map(_.map(_.substitute(subst))),
+          clauses.lift(i2).map(_.map(_.substitute(subst)))
         )
 
-        c1.zipWithIndex
-          .find((e) => {
-            val (l1, i1) = e
+        (c1, c2) match
+          case (None(), _) =>
+            Invalid("first referenced clause does not exist")
+          case (_, None()) =>
+            Invalid("second referenced clause does not exist")
+          case (Some(c1), Some(c2)) =>
+            c1.zipWithIndex
+              .find((e) => {
+                val (l1, i1) = e
 
-            c2.indexOf(l1.negation) match
-              case BigInt(-1) => false
-              case i2 =>
-                (c1.without(i1) ++ c2.without(i2)).toSet == clause.toSet
-          })
-          .map((_) => Valid)
-          .getOrElse(Invalid("no steps found"))
+                c2.indexOf(l1.negation) match
+                  case n if n == -1 => false
+                  case i2 =>
+                    (c1.without(i1) ++ c2.without(i2)).toSet == clause.toSet
+              })
+              .map((_) => Valid)
+              .getOrElse(Invalid("no steps found"))
 
     proof
       .foldLeft[(List[Clause], ProofCheckResult)]((List(), Valid))(
