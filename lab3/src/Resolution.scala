@@ -337,7 +337,9 @@ object Resolution {
           )
         ),
         (
-          List(hates(a, a)),
+          List(
+            hates(a, a)
+          ),
           Deduced(
             (10, 15),
             Map(id(6) -> a)
@@ -364,8 +366,49 @@ object Resolution {
      * and indexed them relatively to k.
      */
     def agathaKilledAgatha(k: BigInt): ResolutionProof = {
+      // 1. We know charles is not the killer.
+      // 2. Mansion.scala already derives that additionally the butler isnt the killer.
+      // 3. The killer has to live in Dreadbury mansion, only agatha is left, so she is the killer.
       List(
-        /* TODO: Complete me */
+        (
+          List(
+            Literal(Neg(eqvp(killer, c))),
+            Literal(Neg(killedp(killer, a)))
+          ),
+          Deduced(
+            (17, 23),
+            Map(
+              id(15) -> killer,
+              id(16) -> c,
+              id(14) -> a
+            )
+          )
+        ),
+        (
+          List(
+            Literal(Neg(eqvp(killer, b))),
+            Literal(Neg(killedp(killer, a)))
+          ),
+          Deduced(
+            (17, 33),
+            Map(
+              id(15) -> killer,
+              id(16) -> b,
+              id(14) -> a
+            )
+          )
+        ),
+        (
+          List(Literal(Neg(eqvp(killer, c)))),
+          Deduced((1, k), Map())
+        ),
+        (
+          List(Literal(Neg(eqvp(killer, b)))),
+          Deduced((1, k + 1), Map())
+        ),
+        (List(eqv(killer, a), eqv(killer, b)), Deduced((20, k + 2), Map())),
+        (List(eqv(killer, a)), Deduced((k + 3, k + 4), Map())),
+        (List(killed(a, a)), Deduced((24, k + 5), Map(id(16) -> a)))
       )
     }
   }
