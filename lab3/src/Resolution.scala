@@ -318,8 +318,40 @@ object Resolution {
       */
 
     def charlesInnocent: ResolutionProof = {
+      // 1. Agatha hates herself.
+      // 2. Charles doesnt hate those that agatha hates, so charles doesnt hate agatha.
+      // 3. If charles were to kill agatha, he would have to hate her. Contradiction.
       List(
-        /* TODO: Complete me */
+        (
+          List(
+            Literal(Neg(killedp(c, a))),
+            Literal(Neg(hatesp(a, a)))
+          ),
+          Deduced(
+            (6, 8),
+            Map(
+              id(2) -> c,
+              id(3) -> a,
+              id(4) -> a
+            )
+          )
+        ),
+        (
+          List(hates(a, a)),
+          Deduced(
+            (10, 15),
+            Map(id(6) -> a)
+          )
+        ),
+        (
+          List(
+            Literal(Neg(killedp(c, a)))
+          ),
+          Deduced(
+            (21, 22),
+            Map()
+          )
+        )
       )
     }
 

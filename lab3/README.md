@@ -71,7 +71,7 @@ We will use it to get to the bottom of the following mystery:
 
 Stated more formally:
 
-```math
+$$
 \begin{align}
 & \exists x. lives(x) \land killed(x,a) \\
 & lives(a) \land lives(b) \land lives(c) \land \forall x. lives(x) \rightarrow (x=a \lor x=b \lor x=c) \\
@@ -83,7 +83,7 @@ Stated more formally:
 & \neg \exists x. \forall y. hates(x,y) \\
 & a \not= b
 \end{align}
-```
+$$
 
 We implemented this in [Mansion.scala](Mansion.scala).
 We also added some additional assumptions, such as commutativity of equality and Leibniz's property for all predicates.
