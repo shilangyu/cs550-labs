@@ -370,45 +370,9 @@ object Resolution {
       // 2. Mansion.scala already derives that additionally the butler isnt the killer.
       // 3. The killer has to live in Dreadbury mansion, only agatha is left, so she is the killer.
       List(
-        (
-          List(
-            Literal(Neg(eqvp(killer, c))),
-            Literal(Neg(killedp(killer, a)))
-          ),
-          Deduced(
-            (17, 23),
-            Map(
-              id(15) -> killer,
-              id(16) -> c,
-              id(14) -> a
-            )
-          )
-        ),
-        (
-          List(
-            Literal(Neg(eqvp(killer, b))),
-            Literal(Neg(killedp(killer, a)))
-          ),
-          Deduced(
-            (17, 33),
-            Map(
-              id(15) -> killer,
-              id(16) -> b,
-              id(14) -> a
-            )
-          )
-        ),
-        (
-          List(Literal(Neg(eqvp(killer, c)))),
-          Deduced((1, k), Map())
-        ),
-        (
-          List(Literal(Neg(eqvp(killer, b)))),
-          Deduced((1, k + 1), Map())
-        ),
-        (List(eqv(killer, a), eqv(killer, b)), Deduced((20, k + 2), Map())),
-        (List(eqv(killer, a)), Deduced((k + 3, k + 4), Map())),
-        (List(killed(a, a)), Deduced((24, k + 5), Map(id(16) -> a)))
+        (List(eqv(killer, a), eqv(killer, b)), Deduced((20, 25), Map())),
+        (List(eqv(killer, a)), Deduced((34, k), Map())),
+        (List(killed(a, a)), Deduced((24, k + 1), Map(id(16) -> a)))
       )
     }
   }
