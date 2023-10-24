@@ -74,8 +74,26 @@ object Resolution {
    * Put the formula in Negation Normal Form.
    */
   def negationNormalForm(f: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    def aux(f: Formula, neg: Boolean): Formula = {
+      decreases(f)
+      f match {
+        case p: Predicate =>
+          if neg then Neg(p) else p
+        case And(left, right) =>
+          if neg then Or(aux(left, true), aux(right, true)) else And(aux(left, false), aux(right, false))
+        case Or(left, right) =>
+          if neg then And(aux(left, true), aux(right, true)) else Or(aux(left, false), aux(right, false))
+        case Implies(left, right) =>
+          if neg then And(aux(left, false), aux(right, true)) else Or(aux(left, true), aux(right, false))
+        case Neg(inner) =>
+          aux(inner, !neg)
+        case Forall(v, inner) =>
+          if neg then Exists(v, aux(inner, true)) else Forall(v, aux(inner, false))
+        case Exists(v, inner) =>
+          if neg then Forall(v, aux(inner, true)) else Exists(v, aux(inner, false))
+      }
+    }
+    aux(f, false)
   }.ensuring(res => res.isNNF)
 
   /** Perform the following steps:
@@ -85,8 +103,25 @@ object Resolution {
     *   - Eliminate existential quantifiers using Skolemization.
     */
   def skolemizationNegation(f0: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    def aux(f: Formula, subst: Map[Identifier, Term]): Formula = {  // subst should be Var -> Function ...
+      decreases(f)
+      f match {
+        case Predicate(id, children) =>
+          Predicate(id, children.map(_.substitute(subst)))
+        case And(left, right) =>
+          And(aux(left, subst), aux(right, subst))
+        case Or(left, right) =>
+          Or(aux(left, subst), aux(right, subst))
+        case _: Implies => ???
+        case Neg(inner) =>
+          Neg(aux(inner, subst))
+        case Forall(v, inner) =>
+          Forall(v, aux(inner, subst))
+        case e @ Exists(v, inner) =>
+          aux(inner, subst + (v.name -> Function(v.name, e.freeVariables.map(Var(_)))))
+      }
+    }
+    aux(negationNormalForm(makeVariableNamesUnique(f0)), Map.empty)
   }.ensuring(res => res.isNNF && res.containsNoExistential)
 
   /** Perform the following steps:
@@ -95,8 +130,23 @@ object Resolution {
     *   - Return the matrix of the formula.
     */
   def prenexSkolemizationNegation(f: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    def aux(f: Formula): Formula = {
+      decreases(f)
+      f match {
+        case p: Predicate => p
+        case And(left, right) =>
+          And(aux(left), aux(right))
+        case Or(left, right) =>
+          Or(aux(left), aux(right))
+        case _: Implies => ???
+        case Neg(inner) =>
+          Neg(aux(inner))
+        case Forall(v, inner) =>
+          aux(inner)
+        case _: Exists => ???
+      }
+    }
+    aux(skolemizationNegation(f))
   }.ensuring(res =>
     res.isNNF && res.containsNoUniversal && res.containsNoExistential
   )
@@ -111,8 +161,25 @@ object Resolution {
     * This function should NOT do that.
     */
   def conjunctionPrenexSkolemizationNegation(f: Formula): List[Clause] = {
-    /* TODO: Implement me */
-    (??? : List[Clause])
+    def aux(f: Formula): List[Clause] = {
+      f match
+        case p: Predicate => List(List(Literal(p)))
+        case And(l, r) =>
+          aux(l) ++ aux(r)
+        case Or(l, r) =>
+          for
+            cl <- aux(l)
+            cr <- aux(r)
+          yield cl ++ cr
+        case _: Implies => ???
+        case n @ Neg(inner) =>
+          inner match
+            case _: Predicate => List(List(Literal(n)))
+            case _ => ???
+        case _: Forall => ???
+        case _: Exists => ???
+    }
+    aux(prenexSkolemizationNegation(f))
   }
 
   /* Part two: proof checking */
@@ -164,8 +231,25 @@ object Resolution {
     *   Invalid(mkErrorMessage)
     */
   def checkResolutionProof(proof: ResolutionProof): ProofCheckResult = {
-    /* TODO: Implement me */
-    (??? : ProofCheckResult)
+    proof.foldLeft((List.empty[Clause], Valid: ProofCheckResult)){ (current, step) => current match
+      case (prefix, Valid) => step match
+        case (clause, Assumed) => (prefix :+ clause, Valid)    
+        case (clause, Deduced((a, b), subst)) =>
+          if a < 0 || a >= prefix.length || b < 0 || b >= prefix.length then (prefix, Invalid("Premise indices out of range"))
+          else
+            val prema = prefix(a).map(_.substitute(subst)).toSet
+            val premb = prefix(b).map(_.substitute(subst)).toSet
+            val all =
+              for
+                la <- prema.toList
+                lb <- premb.toList
+              yield
+                val (las, lbs) = (prema - la, premb - lb)
+                la == lb.negation && (las ++ lbs) == clause.toSet  // We can freely remove duplicates, since (a v a) = a
+            if all.foldLeft(false)(_ || _) then (prefix :+ clause, Valid)
+            else (prefix, Invalid("Could not use resolution to derive the clause"))
+      case x @ (_, _: Invalid) => x
+    }._2
   }
 
   def assumptions(proof: ResolutionProof): List[Clause] = {
@@ -181,7 +265,7 @@ object Resolution {
     require(!proof.isEmpty)
     proof(proof.length - 1)._1
   }
-
+  
   /* Part three: The Dreadsbury Mansion Mystery */
   object MansionFragments {
     import Mansion.*
@@ -194,7 +278,18 @@ object Resolution {
 
     def charlesInnocent: ResolutionProof = {
       List(
-        /* TODO: Complete me */
+        (
+          List(hates(a, a).negation, killed(c, a).negation),
+          Deduced((6, 8), Map(id(2) -> c, id(3) -> a, id(4) -> a))
+        ),
+        (
+          List(hates(a, a)),
+          Deduced((10, 15), Map(id(6) -> a))
+        ),
+        (
+          List(killed(c, a).negation),
+          Deduced((21, 22), Map())
+        )
       )
     }
 
@@ -208,7 +303,14 @@ object Resolution {
      */
     def agathaKilledAgatha(k: BigInt): ResolutionProof = {
       List(
-        /* TODO: Complete me */
+        (
+          List(eqv(killer, a)),
+          Deduced((k - 9, k - 1), Map())
+        ),
+        (
+          List(killed(a, a)),
+          Deduced((k - 11, k), Map(id(16) -> a))
+        )
       )
     }
   }
