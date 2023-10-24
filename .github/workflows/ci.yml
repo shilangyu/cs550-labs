@@ -58,4 +58,6 @@ jobs:
         working-directory: lab3
         run: |
           scala-cli test .
+          scala-cli run . -- 1
+          scala-cli run . -- 2
           ../stainless/stainless.sh src/*.scala

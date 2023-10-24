@@ -323,36 +323,16 @@ object Resolution {
       // 3. If charles were to kill agatha, he would have to hate her. Contradiction.
       List(
         (
-          List(
-            Literal(Neg(killedp(c, a))),
-            Literal(Neg(hatesp(a, a)))
-          ),
-          Deduced(
-            (6, 8),
-            Map(
-              id(2) -> c,
-              id(3) -> a,
-              id(4) -> a
-            )
-          )
+          List(killed(c, a).negation, hates(a, a).negation),
+          Deduced((6, 8), Map(id(2) -> c, id(3) -> a, id(4) -> a))
         ),
         (
-          List(
-            hates(a, a)
-          ),
-          Deduced(
-            (10, 15),
-            Map(id(6) -> a)
-          )
+          List(hates(a, a)),
+          Deduced((10, 15), Map(id(6) -> a))
         ),
         (
-          List(
-            Literal(Neg(killedp(c, a)))
-          ),
-          Deduced(
-            (21, 22),
-            Map()
-          )
+          List(killed(c, a).negation),
+          Deduced((21, 22), Map())
         )
       )
     }
@@ -370,9 +350,14 @@ object Resolution {
       // 2. Mansion.scala already derives that additionally the butler isnt the killer.
       // 3. The killer has to live in Dreadbury mansion, only agatha is left, so she is the killer.
       List(
-        (List(eqv(killer, a), eqv(killer, b)), Deduced((20, 25), Map())),
-        (List(eqv(killer, a)), Deduced((34, k), Map())),
-        (List(killed(a, a)), Deduced((24, k + 1), Map(id(16) -> a)))
+        (
+          List(eqv(killer, a)),
+          Deduced((k - 1, k - 9), Map())
+        ),
+        (
+          List(killed(a, a)),
+          Deduced((k - 11, k), Map(id(16) -> a))
+        )
       )
     }
   }
