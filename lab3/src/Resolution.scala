@@ -1,10 +1,21 @@
-import stainless.lang.*
-import stainless.collection.*
-import stainless.annotation.*
-import stainless.lang.Map.ToMapOps
-
-import Utils.*
 import Formulas.*
+import Utils.*
+import stainless.annotation.*
+import stainless.collection.*
+import stainless.lang.Map.ToMapOps
+import stainless.lang.*
+
+extension [T](l: List[T])
+  def without(index: BigInt): List[T] = l.take(index) ++ l.drop(index + 1)
+  def zipWithIndex: List[(T, BigInt)] = {
+    def aux(l: List[T], i: BigInt): List[(T, BigInt)] = l match
+      case Cons(h, t) => Cons((h, i), aux(t, i + 1))
+      case Nil()      => Nil()
+
+    aux(l, 0)
+  }
+  def lift(i: BigInt): Option[T] =
+    if i >= 0 && i < l.length then Some(l(i)) else None()
 
 object Resolution {
 
@@ -74,8 +85,32 @@ object Resolution {
    * Put the formula in Negation Normal Form.
    */
   def negationNormalForm(f: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    decreases(f)
+    f match
+      case Neg(inner) =>
+        inner match
+          case p @ Predicate(name, children) => Neg(p)
+          case And(l, r) =>
+            Or(negationNormalForm(Neg(l)), negationNormalForm(Neg(r)))
+          case Or(l, r) =>
+            And(negationNormalForm(Neg(l)), negationNormalForm(Neg(r)))
+          case Implies(left, right) =>
+            And(negationNormalForm(left), negationNormalForm(Neg(right)))
+          case Neg(inner) => negationNormalForm(inner)
+          case Forall(variable, inner) =>
+            Exists(variable, negationNormalForm(Neg(inner)))
+          case Exists(variable, inner) =>
+            Forall(variable, negationNormalForm(Neg(inner)))
+
+      case p @ Predicate(name, children) => p
+      case And(l, r) => And(negationNormalForm(l), negationNormalForm(r))
+      case Or(l, r)  => Or(negationNormalForm(l), negationNormalForm(r))
+      case Implies(left, right) =>
+        Or(negationNormalForm(Neg(left)), negationNormalForm(right))
+      case Forall(variable, inner) =>
+        Forall(variable, negationNormalForm(inner))
+      case Exists(variable, inner) =>
+        Exists(variable, negationNormalForm(inner))
   }.ensuring(res => res.isNNF)
 
   /** Perform the following steps:
@@ -85,8 +120,28 @@ object Resolution {
     *   - Eliminate existential quantifiers using Skolemization.
     */
   def skolemizationNegation(f0: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    def aux(f: Formula, subst: Map[Identifier, Term]): Formula = {
+      require(f.isNNF)
+
+      f match
+        case Predicate(name, children) =>
+          Predicate(name, children.map(_.substitute(subst)))
+        case And(l, r)               => And(aux(l, subst), aux(r, subst))
+        case Or(l, r)                => Or(aux(l, subst), aux(r, subst))
+        case Implies(left, right)    => ??? // should not happen in NNF
+        case Neg(inner)              => Neg(aux(inner, subst))
+        case Forall(variable, inner) => Forall(variable, aux(inner, subst))
+        case e @ Exists(variable, inner) =>
+          aux(
+            inner,
+            subst + (variable.name -> Function(
+              variable.name,
+              e.freeVariables.map(Var(_))
+            ))
+          )
+    }.ensuring(res => res.isNNF && res.containsNoExistential)
+
+    aux(negationNormalForm(makeVariableNamesUnique(f0)), Map())
   }.ensuring(res => res.isNNF && res.containsNoExistential)
 
   /** Perform the following steps:
@@ -95,8 +150,23 @@ object Resolution {
     *   - Return the matrix of the formula.
     */
   def prenexSkolemizationNegation(f: Formula): Formula = {
-    /* TODO: Implement me */
-    (??? : Formula)
+    def aux(f: Formula): Formula = {
+      require(f.isNNF && f.containsNoExistential)
+
+      f match
+        case p @ Predicate(name, children) => p
+        case And(l, r)                     => And(aux(l), aux(r))
+        case Or(l, r)                      => Or(aux(l), aux(r))
+        case Implies(left, right)          => ??? // should not happen in NNF
+        case Neg(inner)                    => Neg(aux(inner))
+        case Forall(variable, inner)       => aux(inner)
+        case Exists(variable, inner) =>
+          ??? // should not happen after skolemization
+    }.ensuring(res =>
+      res.isNNF && res.containsNoUniversal && res.containsNoExistential
+    )
+
+    aux(skolemizationNegation(f))
   }.ensuring(res =>
     res.isNNF && res.containsNoUniversal && res.containsNoExistential
   )
@@ -111,8 +181,26 @@ object Resolution {
     * This function should NOT do that.
     */
   def conjunctionPrenexSkolemizationNegation(f: Formula): List[Clause] = {
-    /* TODO: Implement me */
-    (??? : List[Clause])
+    def aux(f: Formula): List[Clause] = {
+      require(f.isNNF && f.containsNoUniversal && f.containsNoExistential)
+
+      f match
+        case And(l, r) => aux(l) ++ aux(r)
+        case Or(l, r) =>
+          for
+            cl <- aux(l)
+            cr <- aux(r)
+          yield cl ++ cr
+        case p @ Neg(Predicate(_, _)) => List(List(Literal(p)))
+        case p @ Predicate(_, _)      => List(List(Literal(p)))
+        case Implies(left, right)     => ??? // should not happen in NNF
+        case Neg(inner)               => ??? // should not happen in NNF
+        case Forall(variable, inner)  => ??? // should not happen after prenex
+        case Exists(variable, inner) =>
+          ??? // should not happen after skolemization
+    }
+
+    aux(prenexSkolemizationNegation(f))
   }
 
   /* Part two: proof checking */
@@ -164,8 +252,45 @@ object Resolution {
     *   Invalid(mkErrorMessage)
     */
   def checkResolutionProof(proof: ResolutionProof): ProofCheckResult = {
-    /* TODO: Implement me */
-    (??? : ProofCheckResult)
+    def checkStep(
+        clauses: List[Clause],
+        clause: Clause,
+        step: Justification
+    ): ProofCheckResult = step match
+      case Assumed => Valid
+      case Deduced((i1, i2), subst) =>
+        val (c1, c2) = (
+          clauses.lift(i1).map(_.map(_.substitute(subst))),
+          clauses.lift(i2).map(_.map(_.substitute(subst)))
+        )
+
+        (c1, c2) match
+          case (None(), _) =>
+            Invalid("first referenced clause does not exist")
+          case (_, None()) =>
+            Invalid("second referenced clause does not exist")
+          case (Some(c1), Some(c2)) =>
+            c1.zipWithIndex
+              .find((e) => {
+                val (l1, i1) = e
+
+                c2.indexOf(l1.negation) match
+                  case n if n == -1 => false
+                  case i2 =>
+                    (c1.without(i1) ++ c2.without(i2)).toSet == clause.toSet
+              })
+              .map((_) => Valid)
+              .getOrElse(Invalid("no steps found"))
+
+    proof
+      .foldLeft[(List[Clause], ProofCheckResult)]((List(), Valid))(
+        (scan, curr) =>
+          scan._2 match
+            case Valid =>
+              (scan._1 :+ curr._1, checkStep(scan._1, curr._1, curr._2))
+            case i: Invalid => scan
+      )
+      ._2
   }
 
   def assumptions(proof: ResolutionProof): List[Clause] = {
@@ -193,8 +318,22 @@ object Resolution {
       */
 
     def charlesInnocent: ResolutionProof = {
+      // 1. Agatha hates herself.
+      // 2. Charles doesnt hate those that agatha hates, so charles doesnt hate agatha.
+      // 3. If charles were to kill agatha, he would have to hate her. Contradiction.
       List(
-        /* TODO: Complete me */
+        (
+          List(killed(c, a).negation, hates(a, a).negation),
+          Deduced((6, 8), Map(id(2) -> c, id(3) -> a, id(4) -> a))
+        ),
+        (
+          List(hates(a, a)),
+          Deduced((10, 15), Map(id(6) -> a))
+        ),
+        (
+          List(killed(c, a).negation),
+          Deduced((21, 22), Map())
+        )
       )
     }
 
@@ -207,8 +346,18 @@ object Resolution {
      * and indexed them relatively to k.
      */
     def agathaKilledAgatha(k: BigInt): ResolutionProof = {
+      // 1. We know charles is not the killer.
+      // 2. Mansion.scala already derives that additionally the butler isnt the killer.
+      // 3. The killer has to live in Dreadbury mansion, only agatha is left, so she is the killer.
       List(
-        /* TODO: Complete me */
+        (
+          List(eqv(killer, a)),
+          Deduced((k - 1, k - 9), Map())
+        ),
+        (
+          List(killed(a, a)),
+          Deduced((k - 11, k), Map(id(16) -> a))
+        )
       )
     }
   }
