@@ -64,19 +64,58 @@ object Lab05 extends lisa.Main {
   }
 
   val joinAbsorption = Theorem((x <= y) |- (x u y) === y) {
-    sorry // TODO
+    assume(x <= y)
+
+    val left = have(y <= (x u y)) by Tautology.from(
+      joinLowerBound
+    )
+    val right = have((x u y) <= y) by Tautology.from(
+      reflexivity of (x := y),
+      lub of (z := y)
+    )
+
+    have(thesis) by Tautology.from(
+      left,
+      right,
+      antisymmetry of (x := y, y := (x u y))
+    )
   }
 
   val meetUpperBound = Theorem(((x n y) <= x) /\ ((x n y) <= y)) {
-    sorry // TODO
+    have(thesis) by Tautology.from(
+      glb of (z := (x n y)),
+      reflexivity of (x := (x n y))
+    )
   }
 
   val meetCommutative = Theorem((x n y) === (y n x)) {
-    sorry // TODO
+    val s1 = have((y n x) <= (x n y)) by Tautology.from(
+      glb of (z := (y n x)),
+      meetUpperBound of (x := y, y := x)
+    )
+    have(thesis) by Tautology.from(
+      s1,
+      s1 of (x := y, y := x),
+      antisymmetry of (x := (y n x), y := (x n y))
+    )
   }
 
   val meetAbsorption = Theorem((x <= y) |- (x n y) === x) {
-    sorry // TODO
+    assume(x <= y)
+
+    val left = have(x <= (x n y)) by Tautology.from(
+      reflexivity,
+      glb of (z := x)
+    )
+    val right = have((x n y) <= x) by Tautology.from(
+      meetUpperBound
+    )
+
+    have(thesis) by Tautology.from(
+      left,
+      right,
+      antisymmetry of (y := (x n y))
+    )
   }
 
   val joinAssociative = Theorem((x u (y u z)) === ((x u y) u z)) {
@@ -121,44 +160,96 @@ object Lab05 extends lisa.Main {
 
                 // 2. right is a meet. In that case, glb gives us the decomposition
                 case (_, n(Seq(a: Term, b: Term))) =>
-                  ??? // TODO
+                  val s1 = solve(left <= a)
+                  val s2 = solve(left <= b)
+
+                  if s1.isValid & s2.isValid then
+                    have(left <= right) by Tautology.from(
+                      glb of (x := a, y := b, z := left),
+                      have(s1),
+                      have(s2)
+                    )
+                  else fail("The inequality is not true in general")
 
                 // 3. left is a meet, right is a join. In that case, we try all pairs.
                 case (n(Seq(a: Term, b: Term)), u(Seq(c: Term, d: Term))) =>
-                  ??? // TODO
-
-                // 4. left is a meet, right is a variable or unknown term.
-                case (n(Seq(a: Term, b: Term)), _) =>
-                  // We try to find a proof for either a <= right or b <= right
                   LazyList(a, b)
-                    .map { e =>
-                      (e, solve(e <= right))
-                    }
-                    .find {
-                      _._2.isValid
-                    }
+                    .map { e => (e, solve(e <= right)) }
+                    .find { _._2.isValid }
                     .map { case (e, step) =>
                       have(left <= right) by Tautology.from(
                         have(step),
                         meetUpperBound of (x := a, y := b),
                         transitivity of (x := left, y := e, z := right)
                       )
+                    }
+                    .getOrElse(
+                      LazyList(c, d)
+                        .map { e => (e, solve(left <= e)) }
+                        .find { _._2.isValid }
+                        .map { case (e, step) =>
+                          have(left <= right) by Tautology.from(
+                            have(step),
+                            joinLowerBound of (x := c, y := d),
+                            transitivity of (x := left, y := e, z := right)
+                          )
+                        }
+                        .getOrElse(
+                          fail("The inequality is not true in general")
+                        )
+                    )
 
+                // 4. left is a meet, right is a variable or unknown term.
+                case (n(Seq(a: Term, b: Term)), _) =>
+                  // We try to find a proof for either a <= right or b <= right
+                  LazyList(a, b)
+                    .map { e => (e, solve(e <= right)) }
+                    .find { _._2.isValid }
+                    .map { case (e, step) =>
+                      have(left <= right) by Tautology.from(
+                        have(step),
+                        meetUpperBound of (x := a, y := b),
+                        transitivity of (x := left, y := e, z := right)
+                      )
                     }
                     .getOrElse(fail("The inequality is not true in general"))
 
                 // 5. left is a variable or unknown term, right is a join.
                 case (_, u(Seq(c: Term, d: Term))) =>
-                  ??? // TODO
+                  LazyList(c, d)
+                    .map { e => (e, solve(left <= e)) }
+                    .find { _._2.isValid }
+                    .map { case (e, step) =>
+                      have(left <= right) by Tautology.from(
+                        have(step),
+                        joinLowerBound of (x := c, y := d),
+                        transitivity of (x := left, y := e, z := right)
+                      )
+                    }
+                    .getOrElse(fail("The inequality is not true in general"))
 
                 // 6. left and right are variables or unknown terms.
                 case _ =>
-                  ??? // TODO
+                  if left == right then
+                    have(left <= right) by Tautology.from(
+                      reflexivity of (x := left)
+                    )
+                  else fail("The inequality is not true in general")
               }
             }
 
             case ===(Seq(left: Term, right: Term)) =>
-              ???
+              val s1 = solve(left <= right)
+              val s2 = solve(right <= left)
+
+              if s1.isValid & s2.isValid then
+                have(left === right) by Tautology.from(
+                  have(s1),
+                  have(s2),
+                  antisymmetry of (x := left, y := right)
+                )
+              else fail("The equality is not true in general")
+
             case _ =>
               fail(
                 "Whitman can only be applied to solve goals of the form () |- s <= t or () |- s === t"
@@ -173,25 +264,25 @@ object Lab05 extends lisa.Main {
   // uncomment when the tactic is implemented
 
   val test1 = Theorem(x <= x) {
-    sorry // have(thesis) by Whitman.solve
+    have(thesis) by Whitman.solve
   }
   val test2 = Theorem(x <= (x u y)) {
-    sorry // have(thesis) by Whitman.solve
+    have(thesis) by Whitman.solve
   }
   val test3 = Theorem((y n x) <= x) {
-    sorry // have(thesis) by Whitman.solve
+    have(thesis) by Whitman.solve
   }
   val test4 = Theorem((x n y) <= (y u z)) {
-    sorry // have(thesis) by Whitman.solve
+    have(thesis) by Whitman.solve
   }
   val idempotence = Theorem((x u x) === x) {
-    sorry // have(thesis) by Whitman.solve
+    have(thesis) by Whitman.solve
   }
   val meetAssociative = Theorem((x n (y n z)) === ((x n y) n z)) {
-    sorry // have(thesis) by Whitman.solve
+    have(thesis) by Whitman.solve
   }
   val semiDistributivITY = Theorem((x u (y n z)) <= ((x u y) n (x u z))) {
-    sorry // have(thesis) by Whitman.solve
+    have(thesis) by Whitman.solve
   }
 
 }
