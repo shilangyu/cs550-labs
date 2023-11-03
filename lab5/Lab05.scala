@@ -119,7 +119,19 @@ object Lab05 extends lisa.Main {
   }
 
   val joinAssociative = Theorem((x u (y u z)) === ((x u y) u z)) {
-    sorry // TODO
+    val left = have ((x u (y u z)) <= ((x u y) u z)) subproof {
+      val a1 = have(x <= ((x u y) u z)) by Tautology.from(joinLowerBound, joinLowerBound of (x := (x u y), y := z), transitivity of (y := (x u y), z := ((x u y) u z)))
+      val a2 = have(y <= ((x u y) u z)) by Tautology.from(joinLowerBound, joinLowerBound of (x := (x u y), y := z), transitivity of (x := y, y := (x u y), z := ((x u y) u z)))
+      val a3 = have(z <= ((x u y) u z)) by Tautology.from(joinLowerBound of (x := (x u y), y := z))
+      have(thesis) by Tautology.from(a1, a2, a3, lub of (x := y, y := z, z := ((x u y) u z)), lub of (y := (y u z), z := ((x u y) u z)))
+    }
+    val right = have (((x u y) u z) <= (x u (y u z))) subproof {
+      val b1 = have(x <= (x u (y u z))) by Tautology.from(joinLowerBound of (y := (y u z)))
+      val b2 = have(y <= (x u (y u z))) by Tautology.from(joinLowerBound of (x := y, y := z), joinLowerBound of (y := (y u z)), transitivity of (x := y, y := (y u z), z := (x u (y u z))))
+      val b3 = have(z <= (x u (y u z))) by Tautology.from(joinLowerBound of (x := y, y := z), joinLowerBound of (y := (y u z)), transitivity of (x := z, y := (y u z), z := (x u (y u z))))
+      have(thesis) by Tautology.from(b1, b2, b3, lub of (z := (x u (y u z))), lub of (x := (x u y), y := z, z := (x u (y u z))))
+    }
+    have(thesis) by Tautology.from(left, right, antisymmetry of (x := (x u (y u z)), y := ((x u y) u z)))
   }
 
   // Tedious, isn't it
