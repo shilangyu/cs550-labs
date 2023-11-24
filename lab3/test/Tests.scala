@@ -203,6 +203,15 @@ class Tests extends FunSuite {
     )
   }
 
+  test("Skolemization - nested existentials") {
+    val formula = Exists(x, Exists(y, p2(x, y)))
+    val skolemized = skolemizationNegation(formula)
+    assertEquals(
+      skolemized,
+      p2(f(s0)(), f(s1)())
+    )
+  }
+
   test("Skolemization - running example") {
     val skolemized = skolemizationNegation(runningExample)
     assertEquals(

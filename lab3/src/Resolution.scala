@@ -136,7 +136,7 @@ object Resolution {
             inner,
             subst + (variable.name -> Function(
               variable.name,
-              e.freeVariables.map(Var(_))
+              (e.freeVariables.toSet -- subst.keys.toSet).toList.map(Var(_))
             ))
           )
     }.ensuring(res => res.isNNF && res.containsNoExistential)
